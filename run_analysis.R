@@ -1,5 +1,7 @@
 
 library(reshape2)
+library(downloader)
+library(plyr)
 
 filename <- "UCI_HAR_Dataset.zip"
 
@@ -19,7 +21,12 @@ if (!file.exists("UCI HAR Dataset")) {
 activity <- read.table("./UCI HAR Dataset/activity_labels.txt")
 features <- read.table("./UCI HAR Dataset/features.txt")
 
-featuresFiltered <- subset(features[,2], grepl("mean", features[,2])|grepl("std",features[,2]))
+featuresFiltered <- grep(".*mean.*|.*std.*", features[,2])
+featuresFiltered.names <- features[featuresFiltered,2]
+featuresFiltered.names = gsub('-mean', 'Mean', featuresFiltered.names)
+featuresFiltered.names = gsub('-std', 'Std', featuresFiltered.names)
+featuresFiltered.names <- gsub('[-()]', '', featuresFiltered.names)
+
 
 # Load Test dataset
 test <- read.table("./UCI HAR Dataset/test/X_test.txt")[featuresFiltered]
@@ -30,7 +37,7 @@ testsubject <- read.table("./UCI HAR Dataset/test/subject_test.txt")
 testData <- cbind(test, testactivity, testsubject)
 
 # Assigning column names
-colnames(testData) <- c(as.vector(featuresFiltered), "activity", "subject")
+colnames(testData) <- c(as.vector(featuresFiltered.names), "activity", "subject")
 
 # Load Train dataset
 train <- read.table("./UCI HAR Dataset/train/X_train.txt")[featuresFiltered]
@@ -41,7 +48,7 @@ trainsubject <- read.table("./UCI HAR Dataset/train/subject_train.txt")
 trainData <- cbind(train, trainactivity, trainsubject)
 
 # Assigning column names
-colnames(trainData) <- c(as.vector(featuresFiltered), "activity", "subject")
+colnames(trainData) <- c(as.vector(featuresFiltered.names), "activity", "subject")
 
 # Merging the data
 finalData <- rbind(testData, trainData)
@@ -50,7 +57,9 @@ finalData <- rbind(testData, trainData)
 finalData$activity <- factor(finalData$activity, levels = activity[,1], labels = activity[,2])
 finalData$subject <- as.factor(finalData$subject)
 
-meltedData <- melt(finalData, id = c("subject", "activity"))
-avgData <- dcast(meltedData, subject + activity ~ variable, mean)
+# finalData.melted <- melt(finalData, id = c("subject", "activity"))
+# finalData.mean <- dcast(finalData.melted, subject + activity ~ variable, mean)
+
+avgData = ddply(finalData, c("subject","activity"), numcolwise(mean))
 
 write.table(avgData, "subject_activity.txt", row.names = FALSE, quote = FALSE)
